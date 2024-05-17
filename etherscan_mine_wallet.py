@@ -3,6 +3,7 @@ from hdwallet import HDWallet
 from hdwallet.symbols import ETH as SYMBOL
 from eth_utils import to_checksum_address
 from mnemonic import Mnemonic
+import requests
 from web3 import Web3
 import time
 from datetime import datetime
@@ -17,13 +18,14 @@ mnemonic_color = Fore.YELLOW
 # Initialize Mnemonic generator
 mnemo = Mnemonic("english")
 
-# infura_url = "https://mainnet.infura.io/v3/74e5288ae75f408aa9e29a5b6d114fba" 
-ankr_url = "https://eth.public-rpc.com"
+# Etherscan API URL
+etherscan_url = "https://api.etherscan.io/api"
+
+# Etherscan API key
+etherscan_api_key = "X1J4BWTMTDF1XQTUPY1QA6PJ6355Q79RIT"
 
 def connect_web3(url):
     web3 = Web3(Web3.HTTPProvider(url))
-    # print("Web3 Provider:", web3.provider)
-    # print("Web3 is connected:", web3.is_connected())
     return web3
 
 total_threads = cpu_count()
@@ -53,31 +55,32 @@ def check_wallet_balance(attempt_counter):
     return results
 
 def fetch_balances(address_mnemonic_pairs):
-    # Initialize Web3 connection inside the process
-    web3 = connect_web3(ankr_url)
+    web3 = connect_web3(etherscan_url)
     balances = []
     for attempt_counter, mnemonic, address in address_mnemonic_pairs:
         while True:
             try:
-                # Fetch the balance at a specific block
-                latest_block = web3.eth.get_block('latest')['number']
-                for block_number in range(0, latest_block + 1, 100000):  # Increment by 100,000 blocks to reduce API load
-                    balance = web3.eth.get_balance(address, block_identifier=block_number)
-                    eth_balance = web3.from_wei(balance, 'ether')
-                    current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    print(f"{current_time} Attempt #{attempt_counter} {address_color}Address: {address}{Style.RESET_ALL}, "
-                          f"{balance_color}Balance: {eth_balance} ETH{Style.RESET_ALL}, "
-                          f"{mnemonic_color}Mnemonic: {mnemonic}{Style.RESET_ALL} at Block {block_number}")
-                    if eth_balance > 0:
-                        balances.append((balance, mnemonic, address))
-                        break
+                params = {
+                    "module": "account",
+                    "action": "balance",
+                    "address": address,
+                    "tag": "latest",
+                    "apikey": etherscan_api_key
+                }
+                response = requests.get(etherscan_url, params=params)
+                data = response.json()
+                balance_wei = int(data["result"])
+                balance_eth = balance_wei / 10**18  # Convert Wei to Ether
+                current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                print(f"{current_time} Attempt #{attempt_counter} {address_color}Address: {address}{Style.RESET_ALL}, "
+                      f"{balance_color}Balance: {balance_eth} ETH{Style.RESET_ALL}, "
+                      f"{mnemonic_color}Mnemonic: {mnemonic}{Style.RESET_ALL}")
+                balances.append((balance_eth, mnemonic, address))
                 break
             except (ConnectionError, OSError) as e:
                 print(f"Network error: {e}. Retrying in 10 seconds...")
-                for i in range(10, 0, -1):
-                    print(f"Retrying in {i} seconds...", end='\r')
-                    time.sleep(1)
-                web3 = connect_web3(ankr_url)
+                time.sleep(10)
+                web3 = connect_web3(etherscan_url)
     return balances
 
 attempt_counter = 0
@@ -96,13 +99,13 @@ def main():
                 if balance > 0:
                     print(f"Match found! Mnemonic: {mnemonic}")
                     print(f"Derived Ethereum Address: {address}")
-                    print(f"Balance: {balance} wei")
+                    print(f"Balance: {balance} ETH")
 
                     # store the wallet info in a file
                     with open("wallet_info.txt", "w") as f:
                         f.write(f"Mnemonic: {mnemonic}\n")
                         f.write(f"Address: {address}\n")
-                        f.write(f"Balance: {balance} wei\n")
+                        f.write(f"Balance: {balance} ETH\n")
                         f.write("\n")
 
                     return  
