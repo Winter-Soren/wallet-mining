@@ -14,7 +14,6 @@ address_color = Fore.BLUE
 balance_color = Fore.GREEN
 mnemonic_color = Fore.YELLOW
 
-# Initialize Mnemonic generator
 mnemo = Mnemonic("english")
 
 # infura_url = "https://mainnet.infura.io/v3/74e5288ae75f408aa9e29a5b6d114fba" 
@@ -53,24 +52,31 @@ def check_wallet_balance(attempt_counter):
     return results
 
 def fetch_balances(address_mnemonic_pairs):
-    # Initialize Web3 connection inside the process
     web3 = connect_web3(ankr_url)
     balances = []
     for attempt_counter, mnemonic, address in address_mnemonic_pairs:
         while True:
             try:
-                # Fetch the balance at a specific block
-                latest_block = web3.eth.get_block('latest')['number']
-                for block_number in range(0, latest_block + 1, 100000):  # Increment by 100,000 blocks to reduce API load
-                    balance = web3.eth.get_balance(address, block_identifier=block_number)
-                    eth_balance = web3.from_wei(balance, 'ether')
-                    current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    print(f"{current_time} Attempt #{attempt_counter} {address_color}Address: {address}{Style.RESET_ALL}, "
-                          f"{balance_color}Balance: {eth_balance} ETH{Style.RESET_ALL}, "
-                          f"{mnemonic_color}Mnemonic: {mnemonic}{Style.RESET_ALL} at Block {block_number}")
-                    if eth_balance > 0:
-                        balances.append((balance, mnemonic, address))
-                        break
+                balance = web3.eth.get_balance(address)
+                eth_balance = web3.from_wei(balance, 'ether')
+                current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                print(f"{current_time} Attempt #{attempt_counter} {address_color}Address: {address}{Style.RESET_ALL}, "
+                      f"{balance_color}Balance: {eth_balance} ETH{Style.RESET_ALL}, "
+                      f"{mnemonic_color}Mnemonic: {mnemonic}{Style.RESET_ALL}")
+                
+                log_entry = f"{current_time} Attempt #{attempt_counter} Address: {address}, " \
+                                f"Balance: {eth_balance} ETH, " \
+                                f"Mnemonic: {mnemonic}\n"
+                                
+                with open("all_walllet_info.txt", "a") as f:
+                    f.write(log_entry)
+                
+                if eth_balance > 0:
+                    balances.append((balance, mnemonic, address))
+                    break
+                
+                
+                
                 break
             except (ConnectionError, OSError) as e:
                 print(f"Network error: {e}. Retrying in 10 seconds...")
@@ -99,7 +105,7 @@ def main():
                     print(f"Balance: {balance} wei")
 
                     # store the wallet info in a file
-                    with open("wallet_info.txt", "w") as f:
+                    with open("wallet_info.txt", "a") as f:
                         f.write(f"Mnemonic: {mnemonic}\n")
                         f.write(f"Address: {address}\n")
                         f.write(f"Balance: {balance} wei\n")
