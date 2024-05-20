@@ -60,6 +60,7 @@ def fetch_balances(address_mnemonic_pairs):
                 balance = web3.eth.get_balance(address)
                 eth_balance = web3.from_wei(balance, 'ether')
                 current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                
                 print(f"{current_time} Attempt #{attempt_counter} {address_color}Address: {address}{Style.RESET_ALL}, "
                       f"{balance_color}Balance: {eth_balance} ETH{Style.RESET_ALL}, "
                       f"{mnemonic_color}Mnemonic: {mnemonic}{Style.RESET_ALL}")
@@ -68,16 +69,17 @@ def fetch_balances(address_mnemonic_pairs):
                                 f"Balance: {eth_balance} ETH, " \
                                 f"Mnemonic: {mnemonic}\n"
                                 
-                with open("all_walllet_info.txt", "a") as f:
-                    f.write(log_entry)
+                # with open("all_walllet_info.txt", "a") as f:
+                #     f.write(log_entry)
                 
                 if eth_balance > 0:
                     balances.append((balance, mnemonic, address))
-                    break
-                
-                
+                    with open("mined_wallet_info.txt", "a") as f:
+                        f.write(log_entry)
+                    break 
                 
                 break
+                
             except (ConnectionError, OSError) as e:
                 print(f"Network error: {e}. Retrying in 10 seconds...")
                 for i in range(10, 0, -1):
